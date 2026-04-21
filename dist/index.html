@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Looter Shooter v.1</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0f;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #fff;
+    }
+
+    canvas { display: block; }
+
+    /* ── Start Screen ── */
+    #start-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1a0a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      cursor: pointer;
+      transition: opacity 0.4s ease;
+    }
+
+    #start-screen.hidden { opacity: 0; pointer-events: none; }
+
+    #start-screen h1 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #a855f7, #3b82f6, #10b981);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.4rem;
+    }
+
+    #start-screen .subtitle {
+      font-size: 1rem;
+      color: #6b7280;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 3rem;
+    }
+
+    #start-screen .click-to-play {
+      font-size: 1.2rem;
+      color: #fff;
+      padding: 1rem 2.5rem;
+      border: 2px solid rgba(168,85,247,0.6);
+      border-radius: 4px;
+      background: rgba(168,85,247,0.1);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { border-color: rgba(168,85,247,0.6); box-shadow: 0 0 20px rgba(168,85,247,0.2); }
+      50% { border-color: rgba(168,85,247,1); box-shadow: 0 0 40px rgba(168,85,247,0.5); }
+    }
+
+    .controls-hint {
+      position: absolute;
+      bottom: 2.5rem;
+      display: flex;
+      gap: 2rem;
+      color: #4b5563;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+    }
+
+    .controls-hint span { display: flex; align-items: center; gap: 0.4rem; }
+    .key {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 3px;
+      padding: 0.15rem 0.4rem;
+      font-size: 0.75rem;
+      font-family: monospace;
+    }
+
+    /* ── Pause Screen ── */
+    #pause-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 90;
+      backdrop-filter: blur(4px);
+    }
+
+    #pause-screen.visible { display: flex; }
+
+    #pause-screen h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #a855f7;
+      margin-bottom: 1rem;
+    }
+
+    #pause-screen p { color: #9ca3af; font-size: 0.9rem; letter-spacing: 0.1em; }
+
+    /* ── HUD ── */
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 50;
+      display: none;
+    }
+
+    #hud.visible { display: block; }
+
+    /* Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+    }
+
+    #crosshair::before,
+    #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.85);
+      border-radius: 1px;
+    }
+
+    #crosshair::before {
+      width: 2px; height: 10px;
+      top: 5px; left: 9px;
+    }
+
+    #crosshair::after {
+      width: 10px; height: 2px;
+      top: 9px; left: 5px;
+    }
+
+    /* Health bar */
+    #health-container {
+      position: absolute;
+      bottom: 2rem;
+      left: 2rem;
+    }
+
+    #health-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 0.3rem;
+    }
+
+    #health-bar-bg {
+      width: 180px;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    #health-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #34d399);
+      border-radius: 4px;
+      transition: width 0.2s ease, background 0.3s ease;
+    }
+
+    #health-text {
+      font-size: 0.75rem;
+      color: #d1d5db;
+      margin-top: 0.25rem;
+    }
+
+    /* Ammo counter */
+    #ammo-container {
+      position: absolute;
+      bottom: 2rem;
+      right: 2rem;
+      text-align: right;
+    }
+
+    #ammo-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+
+    #ammo-count {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #f9fafb;
+      line-height: 1;
+    }
+
+    #ammo-reserve {
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+
+    /* Kill counter */
+    #kill-container {
+      position: absolute;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+
+    #kill-count {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #a855f7;
+      letter-spacing: 0.1em;
+    }
+
+    /* Hit marker */
+    #hit-marker {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 24px;
+      height: 24px;
+      opacity: 0;
+      transition: opacity 0.1s;
+      pointer-events: none;
+    }
+
+    #hit-marker.active { opacity: 1; }
+
+    #hit-marker::before, #hit-marker::after {
+      content: '';
+      position: absolute;
+      background: #ef4444;
+      border-radius: 1px;
+    }
+    #hit-marker::before { width: 2px; height: 8px; top: 8px; left: 11px; }
+    #hit-marker::after { width: 8px; height: 2px; top: 11px; left: 8px; }
+
+    /* Loot notifications */
+    #loot-log {
+      position: absolute;
+      top: 50%;
+      right: 2rem;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      max-height: 200px;
+      overflow: hidden;
+    }
+
+    .loot-item {
+      font-size: 0.8rem;
+      color: #fbbf24;
+      letter-spacing: 0.05em;
+      padding: 0.25rem 0.6rem;
+      background: rgba(0,0,0,0.5);
+      border-left: 2px solid #fbbf24;
+      border-radius: 2px;
+      animation: fadeInOut 2.5s forwards;
+    }
+
+    .loot-item.crystal { color: #a78bfa; border-color: #a78bfa; }
+    .loot-item.health { color: #34d399; border-color: #34d399; }
+    .loot-item.scrap { color: #9ca3af; border-color: #9ca3af; }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateX(10px); }
+      15% { opacity: 1; transform: translateX(0); }
+      70% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Inventory panel */
+    #inventory-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(10,10,20,0.95);
+      border: 1px solid rgba(168,85,247,0.3);
+      border-radius: 8px;
+      padding: 1.5rem;
+      min-width: 340px;
+      display: none;
+      pointer-events: auto;
+      backdrop-filter: blur(8px);
+    }
+
+    #inventory-panel.visible { display: block; }
+
+    #inventory-panel h3 {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #a855f7;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(168,85,247,0.2);
+    }
+
+    #inventory-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+    }
+
+    .inv-slot {
+      aspect-ratio: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.4rem;
+      font-size: 0.65rem;
+      text-align: center;
+      color: #9ca3af;
+      position: relative;
+    }
+
+    .inv-slot .item-icon { font-size: 1.4rem; margin-bottom: 0.2rem; }
+    .inv-slot .item-count {
+      position: absolute;
+      bottom: 3px;
+      right: 5px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    #inventory-close {
+      font-size: 0.7rem;
+      color: #6b7280;
+      text-align: right;
+      margin-top: 1rem;
+      letter-spacing: 0.1em;
+    }
+
+    /* Damage vignette */
+    #damage-vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(220,38,38,0.6) 100%);
+      transition: opacity 0.1s;
+      z-index: 60;
+    }
+
+    #damage-vignette.active { opacity: 1; }
+
+    /* Death screen */
+    #death-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 95;
+    }
+
+    #death-screen.visible { display: flex; }
+    #death-screen h2 { font-size: 2.5rem; color: #ef4444; font-weight: 900; letter-spacing: 0.1em; }
+    #death-screen p { color: #9ca3af; margin-top: 1rem; font-size: 0.9rem; }
+    #death-screen button {
+      margin-top: 2rem;
+      padding: 0.75rem 2rem;
+      background: #7c3aed;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      pointer-events: auto;
+    }
+    #death-screen button:hover { background: #6d28d9; }
+  </style>
+  <script type="module" crossorigin src="/assets/index-plkYtTAC.js"></script>
+</head>
+<body>
+
+  <!-- Start Screen -->
+  <div id="start-screen">
+    <h1>Looter Shooter</h1>
+    <div class="subtitle">v.1 &nbsp;·&nbsp; Early Access</div>
+    <div class="click-to-play">Click to Enter</div>
+    <div class="controls-hint">
+      <span><span class="key">W A S D</span> Move</span>
+      <span><span class="key">Mouse</span> Look</span>
+      <span><span class="key">LMB</span> Shoot</span>
+      <span><span class="key">E</span> Loot</span>
+      <span><span class="key">I</span> Inventory</span>
+      <span><span class="key">Esc</span> Pause</span>
+    </div>
+  </div>
+
+  <!-- Pause Screen -->
+  <div id="pause-screen">
+    <h2>Paused</h2>
+    <p>Click to resume</p>
+  </div>
+
+  <!-- Death Screen -->
+  <div id="death-screen">
+    <h2>YOU DIED</h2>
+    <p>The scavengers got you.</p>
+    <button id="respawn-btn">Respawn</button>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="hit-marker"></div>
+    <div id="damage-vignette"></div>
+
+    <div id="health-container">
+      <div id="health-label">Health</div>
+      <div id="health-bar-bg"><div id="health-bar"></div></div>
+      <div id="health-text">100 / 100</div>
+    </div>
+
+    <div id="ammo-container">
+      <div id="ammo-label">Ammo</div>
+      <div id="ammo-count">30</div>
+      <div id="ammo-reserve">/ 90</div>
+    </div>
+
+    <div id="kill-container">
+      <div id="kill-count">☠ 0 Kills</div>
+    </div>
+
+    <div id="loot-log"></div>
+
+    <div id="inventory-panel">
+      <h3>Inventory</h3>
+      <div id="inventory-grid"></div>
+      <div id="inventory-close">Press [I] to close</div>
+    </div>
+  </div>
+
+</body>
+</html>
